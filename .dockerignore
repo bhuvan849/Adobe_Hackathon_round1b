@@ -1,0 +1,19 @@
+# Ignore Python virtual environment
+venv/
+.venv/
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+
+# Ignore Git folder
+.git/
+
+# Ignore local test folders and other project cruft
+input/
+output/
+Collection 1/
+Collection 2/
+Collection 3/
+*.json
+*.md
