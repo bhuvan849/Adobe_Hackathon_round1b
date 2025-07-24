@@ -74,6 +74,63 @@
             "task": "Create and manage fillable forms for onboarding and compliance."
         }
     },
-    "extracted_sections": [],
-    "sub_section_analysis": []
+    "extracted_sections": [
+        {
+            "document": "Learn Acrobat - Request e-signatures_1.pdf",
+            "section_title": "Validate documents",
+            "importance_rank": 1,
+            "page_number": 20
+        },
+        {
+            "document": "Learn Acrobat - Generative AI_1.pdf",
+            "section_title": "Page 14 Content",
+            "importance_rank": 2,
+            "page_number": 14
+        },
+        {
+            "document": "Learn Acrobat - Generative AI_1.pdf",
+            "section_title": "Page 14 Content",
+            "importance_rank": 3,
+            "page_number": 14
+        },
+        {
+            "document": "Learn Acrobat - Request e-signatures_1.pdf",
+            "section_title": "2. Under Categories , select Identity .",
+            "importance_rank": 4,
+            "page_number": 28
+        },
+        {
+            "document": "Learn Acrobat - Request e-signatures_1.pdf",
+            "section_title": "2. Under Categories , select Identity .",
+            "importance_rank": 5,
+            "page_number": 28
+        }
+    ],
+    "sub_section_analysis": [
+        {
+            "document": "Learn Acrobat - Request e-signatures_1.pdf",
+            "refined_text": "\u2022 Validate all signatures, confirming the identity of everyone who signed the document \u2022 Validate document integrity by tracking all previously signed versions of a document to verify changes made during the document\u2019s lifecycle",
+            "page_number": 20
+        },
+        {
+            "document": "Learn Acrobat - Generative AI_1.pdf",
+            "refined_text": "If you have questions about the document, scroll to the bottom, and select Ask AI",
+            "page_number": 14
+        },
+        {
+            "document": "Learn Acrobat - Generative AI_1.pdf",
+            "refined_text": "If you have questions about the document, scroll to the bottom, and select Ask AI",
+            "page_number": 14
+        },
+        {
+            "document": "Learn Acrobat - Request e-signatures_1.pdf",
+            "refined_text": "3. Enter your name, organization, and email address to create your profile.",
+            "page_number": 28
+        },
+        {
+            "document": "Learn Acrobat - Request e-signatures_1.pdf",
+            "refined_text": "3. Enter your name, organization, and email address to create your profile.",
+            "page_number": 28
+        }
+    ]
 }
