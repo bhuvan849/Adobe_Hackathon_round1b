@@ -3,7 +3,7 @@ FROM --platform=linux/amd64 python:3.9-slim
 
 # Set the working directory inside the container
 WORKDIR /app
-
+ENV TRANSFORMERS_OFFLINE=1
 # --- FIX: Install build tools (like gcc) needed to compile some Python packages ---
 RUN apt-get update && apt-get install -y build-essential
 

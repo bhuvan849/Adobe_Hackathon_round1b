@@ -1,568 +1,576 @@
-# advanced_analysis_engine.py
+import re
+import logging
+from typing import List, Dict, Tuple, Optional, Set
 from sentence_transformers import SentenceTransformer, util
 import numpy as np
-import re
-from typing import List, Dict, Any, Tuple
-from collections import Counter
-import spacy
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import logging
+from collections import defaultdict
+import math
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class AdvancedAnalysisEngine:
-    def __init__(self, model_name='all-mpnet-base-v2'):
-        """Initialize with multiple analysis models"""
+    def __init__(self, model_name: str = "all-mpnet-base-v2", constraint_patterns: Dict = None):
+        """
+        Initialize the advanced analysis engine with persona-driven intelligence.
+        
+        Args:
+            model_name: Sentence transformer model name
+            constraint_patterns: Domain-specific filtering and boosting rules
+        """
         try:
-            self.sentence_model = SentenceTransformer(model_name)
-            logger.info(f"Loaded sentence transformer: {model_name}")
+            self.model = SentenceTransformer(model_name)
+            logger.info(f"Loaded sentence transformer model: {model_name}")
         except Exception as e:
-            logger.warning(f"Failed to load {model_name}, using fallback")
-            self.sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
+            logger.warning(f"Failed to load {model_name}, falling back to smaller model")
+            self.model = SentenceTransformer('all-MiniLM-L6-v2')
         
-        # Initialize TF-IDF for keyword-based scoring
-        self.tfidf_vectorizer = TfidfVectorizer(
-            max_features=5000,
-            stop_words='english',
-            ngram_range=(1, 3),
-            min_df=1,
-            max_df=0.95
-        )
+        self.constraint_patterns = constraint_patterns or {}
         
-        # Try to load spaCy model for NER and linguistic analysis
-        try:
-            self.nlp = spacy.load("en_core_web_sm")
-            self.use_spacy = True
-            logger.info("Loaded spaCy model for advanced text analysis")
-        except OSError:
-            logger.warning("spaCy model not available, using basic text processing")
-            self.nlp = None
-            self.use_spacy = False
-    
+        # Pre-compile constraint patterns for efficiency
+        self._compile_constraint_patterns()
+        
+        # Domain-specific keywords for different personas
+        self.persona_keywords = {
+            'researcher': ['method', 'analysis', 'result', 'conclusion', 'hypothesis', 'study', 'research', 'data'],
+            'student': ['concept', 'definition', 'example', 'theory', 'principle', 'learn', 'understand'],
+            'analyst': ['trend', 'performance', 'metric', 'growth', 'revenue', 'market', 'strategy'],
+            'developer': ['implementation', 'code', 'algorithm', 'architecture', 'design', 'system'],
+            'manager': ['strategy', 'plan', 'objective', 'resource', 'team', 'project', 'goal'],
+            'contractor': ['specification', 'requirement', 'material', 'process', 'quality', 'standard']
+        }
+        
+        # Task-specific keywords
+        self.task_keywords = {
+            'review': ['summary', 'overview', 'comparison', 'evaluation', 'assessment'],
+            'analysis': ['pattern', 'trend', 'insight', 'correlation', 'impact', 'factor'],
+            'planning': ['strategy', 'approach', 'timeline', 'resource', 'step', 'phase'],
+            'preparation': ['material', 'ingredient', 'tool', 'equipment', 'setup', 'requirement']
+        }
+
+    def _compile_constraint_patterns(self):
+        """Compile regex patterns for efficient matching."""
+        self.hard_filters = {}
+        self.soft_boosts = {}
+        
+        for category, patterns in self.constraint_patterns.items():
+            for name, pattern in patterns.items():
+                try:
+                    compiled_pattern = re.compile(pattern, re.IGNORECASE)
+                    
+                    if name.startswith("non_"):
+                        # Hard filter (exclude content matching this pattern)
+                        self.hard_filters[f"{category}_{name}"] = compiled_pattern
+                    else:
+                        # Soft boost (prioritize content matching this pattern)
+                        boost_value = 1.3 if 'gluten' in name else 1.2
+                        self.soft_boosts[f"{category}_{name}"] = (compiled_pattern, boost_value)
+                        
+                except re.error as e:
+                    logger.warning(f"Invalid regex pattern for {category}.{name}: {e}")
+
     def get_ranked_sections(self, persona: str, job_to_be_done: str, 
-                          all_sections: List[Dict]) -> List[Dict]:
+                          sections: List[Dict], top_k: int = 5) -> Tuple[List[Dict], List[Dict]]:
         """
-        Advanced relevance ranking using multiple scoring methods
-        """
-        if not all_sections:
-            return []
+        Rank sections based on persona and job-to-be-done with advanced scoring.
         
-        # Create comprehensive query
+        Args:
+            persona: User persona/role
+            job_to_be_done: Specific task to accomplish
+            sections: List of document sections
+            top_k: Number of top sections to return
+            
+        Returns:
+            Tuple of (ranked_sections, subsection_analysis)
+        """
+        if not sections:
+            logger.warning("No sections provided for ranking")
+            return [], []
+
+        logger.info(f"Ranking {len(sections)} sections for persona: {persona}, task: {job_to_be_done}")
+
+        # Create enhanced query
         query = self._create_enhanced_query(persona, job_to_be_done)
         
-        # Extract persona keywords and job keywords
-        persona_keywords = self._extract_keywords(persona)
-        job_keywords = self._extract_keywords(job_to_be_done)
-        
-        logger.info(f"Ranking {len(all_sections)} sections for persona: {persona}")
-        logger.info(f"Job to be done: {job_to_be_done}")
-        
-        # Score sections using multiple methods
-        scored_sections = []
-        
-        for i, section in enumerate(all_sections):
-            scores = self._calculate_multi_dimensional_score(
-                query, section, persona_keywords, job_keywords
-            )
-            
-            section_copy = section.copy()
-            section_copy.update(scores)
-            section_copy['section_id'] = i
-            scored_sections.append(section_copy)
-        
-        # Sort by composite score
-        scored_sections.sort(key=lambda x: x['composite_score'], reverse=True)
-        
-        # Assign importance ranks
-        for i, section in enumerate(scored_sections):
-            section['importance_rank'] = i + 1
-        
-        # Log top sections for debugging
-        logger.info("Top 5 sections by relevance:")
-        for i, section in enumerate(scored_sections[:5]):
-            logger.info(f"{i+1}. {section['title'][:50]}... (Score: {section['composite_score']:.3f})")
-        
-        return scored_sections
-    
-    def _create_enhanced_query(self, persona: str, job_to_be_done: str) -> str:
-        """Create a comprehensive query for relevance matching"""
-        # Extract key components
-        persona_role = self._extract_role(persona)
-        persona_domain = self._extract_domain(persona)
-        task_verbs = self._extract_task_verbs(job_to_be_done)
-        task_objects = self._extract_task_objects(job_to_be_done)
-        
-        # Build weighted query
-        query_parts = [
-            f"Role: {persona_role}",
-            f"Domain expertise: {persona_domain}",
-            f"Task: {job_to_be_done}",
-            f"Action words: {' '.join(task_verbs)}",
-            f"Focus areas: {' '.join(task_objects)}",
-            f"Professional context: {persona}",
-            job_to_be_done,  # Original task for reference
-        ]
-        
-        return " ".join(query_parts)
-    
-    def _extract_role(self, persona: str) -> str:
-        """Extract role/profession from persona"""
-        role_patterns = [
-            r'(researcher|analyst|student|professor|engineer|developer|manager|consultant)',
-            r'(phd|undergraduate|graduate|senior|junior|lead|principal)',
-            r'(doctor|scientist|specialist|expert|practitioner)'
-        ]
-        
-        roles = []
-        for pattern in role_patterns:
-            matches = re.findall(pattern, persona.lower())
-            roles.extend(matches)
-        
-        return " ".join(set(roles)) if roles else "professional"
-    
-    def _extract_domain(self, persona: str) -> str:
-        """Extract domain/field from persona"""
-        domain_patterns = [
-            r'(biology|chemistry|physics|mathematics|computer science|finance|medicine)',
-            r'(business|marketing|sales|legal|engineering|research)',
-            r'(data science|machine learning|artificial intelligence|biotechnology)'
-        ]
-        
-        domains = []
-        for pattern in domain_patterns:
-            matches = re.findall(pattern, persona.lower())
-            domains.extend(matches)
-        
-        return " ".join(set(domains)) if domains else "general"
-    
-    def _extract_task_verbs(self, job_to_be_done: str) -> List[str]:
-        """Extract action verbs from job description"""
-        action_verbs = [
-            'analyze', 'review', 'summarize', 'identify', 'extract', 'compare',
-            'evaluate', 'assess', 'investigate', 'research', 'study', 'examine',
-            'prepare', 'create', 'develop', 'build', 'design', 'implement',
-            'find', 'discover', 'determine', 'calculate', 'measure', 'quantify'
-        ]
-        
-        found_verbs = []
-        job_lower = job_to_be_done.lower()
-        for verb in action_verbs:
-            if verb in job_lower:
-                found_verbs.append(verb)
-        
-        return found_verbs
-    
-    def _extract_task_objects(self, job_to_be_done: str) -> List[str]:
-        """Extract key objects/topics from job description"""
-        if self.use_spacy and self.nlp:
-            doc = self.nlp(job_to_be_done)
-            entities = [ent.text.lower() for ent in doc.ents 
-                       if ent.label_ in ['ORG', 'PRODUCT', 'EVENT', 'WORK_OF_ART']]
-            nouns = [token.lemma_.lower() for token in doc 
-                    if token.pos_ in ['NOUN', 'PROPN'] and len(token.text) > 2]
-            return list(set(entities + nouns))
-        else:
-            # Fallback: simple noun extraction
-            words = re.findall(r'\b[a-zA-Z]+\b', job_to_be_done.lower())
-            return [word for word in words if len(word) > 3]
-    
-    def _extract_keywords(self, text: str) -> List[str]:
-        """Extract key terms from text"""
-        if not text:
-            return []
-        
-        # Remove common stop words and extract meaningful terms
-        words = re.findall(r'\b[a-zA-Z]+\b', text.lower())
-        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'}
-        keywords = [word for word in words if len(word) > 2 and word not in stop_words]
-        
-        return list(set(keywords))
-    
-    def _calculate_multi_dimensional_score(self, query: str, section: Dict, 
-                                         persona_keywords: List[str], 
-                                         job_keywords: List[str]) -> Dict:
-        """Calculate comprehensive relevance score using multiple methods"""
-        section_text = f"{section.get('title', '')} {section.get('content', '')}"
-        
-        # 1. Semantic similarity using sentence transformers
-        semantic_score = self._calculate_semantic_score(query, section_text)
-        
-        # 2. Keyword-based relevance
-        keyword_score = self._calculate_keyword_score(
-            section_text, persona_keywords + job_keywords
-        )
-        
-        # 3. Title relevance (titles are often more indicative)
-        title_score = self._calculate_title_relevance(
-            section.get('title', ''), persona_keywords + job_keywords
-        )
-        
-        # 4. Content quality and informativeness
-        quality_score = self._calculate_content_quality(section_text)
-        
-        # 5. Domain-specific scoring
-        domain_score = self._calculate_domain_relevance(section_text, query)
-        
-        # 6. Section structure bonus (well-structured content is often more valuable)
-        structure_score = self._calculate_structure_score(section)
-        
-        # Weighted composite score
-        weights = {
-            'semantic': 0.35,
-            'keyword': 0.25,
-            'title': 0.15,
-            'quality': 0.10,
-            'domain': 0.10,
-            'structure': 0.05
-        }
-        
-        composite_score = (
-            weights['semantic'] * semantic_score +
-            weights['keyword'] * keyword_score +
-            weights['title'] * title_score +
-            weights['quality'] * quality_score +
-            weights['domain'] * domain_score +
-            weights['structure'] * structure_score
-        )
-        
-        return {
-            'semantic_score': semantic_score,
-            'keyword_score': keyword_score,
-            'title_score': title_score,
-            'quality_score': quality_score,
-            'domain_score': domain_score,
-            'structure_score': structure_score,
-            'composite_score': composite_score
-        }
-    
-    def _calculate_semantic_score(self, query: str, section_text: str) -> float:
-        """Calculate semantic similarity using sentence transformers"""
-        try:
-            query_embedding = self.sentence_model.encode(query, convert_to_tensor=True,show_progress_bar=False)
-            section_embedding = self.sentence_model.encode(section_text, convert_to_tensor=True,show_progress_bar=False)
-            similarity = util.cos_sim(query_embedding, section_embedding)[0][0]
-            return float(similarity)
-        except Exception as e:
-            logger.warning(f"Semantic scoring failed: {e}")
-            return 0.0
-    
-    def _calculate_keyword_score(self, section_text: str, keywords: List[str]) -> float:
-        """Calculate keyword-based relevance score"""
-        if not keywords:
-            return 0.0
-        
-        section_lower = section_text.lower()
-        total_matches = 0
-        total_importance = 0
-        
-        for keyword in keywords:
-            # Count occurrences
-            count = section_lower.count(keyword.lower())
-            if count > 0:
-                # Weight by inverse frequency (rare words are more important)
-                importance = 1.0 / (section_lower.count(keyword.lower()) + 1)
-                total_matches += count * importance
-                total_importance += importance
-        
-        return min(total_matches / max(len(keywords), 1), 1.0)
-    
-    def _calculate_title_relevance(self, title: str, keywords: List[str]) -> float:
-        """Calculate how relevant the section title is"""
-        if not title or not keywords:
-            return 0.0
-        
-        title_lower = title.lower()
-        matches = sum(1 for keyword in keywords if keyword.lower() in title_lower)
-        return matches / len(keywords)
-    
-    def _calculate_content_quality(self, section_text: str) -> float:
-        """Assess content quality and informativeness"""
-        if not section_text:
-            return 0.0
-        
-        words = section_text.split()
-        if len(words) < 10:
-            return 0.2
-        
-        # Factors for quality assessment
-        word_count = len(words)
-        unique_words = len(set(word.lower() for word in words))
-        avg_word_length = sum(len(word) for word in words) / len(words)
-        
-        # Quality indicators
-        has_numbers = bool(re.search(r'\d+', section_text))
-        has_technical_terms = bool(re.search(r'[A-Z][a-z]+[A-Z]', section_text))
-        sentence_count = len(re.split(r'[.!?]+', section_text))
-        
-        # Normalize scores
-        length_score = min(word_count / 200, 1.0)  # Prefer substantial content
-        diversity_score = unique_words / word_count if word_count > 0 else 0
-        complexity_score = min(avg_word_length / 6, 1.0)  # Prefer complex vocabulary
-        
-        bonus = 0.1 * (has_numbers + has_technical_terms)
-        
-        return min(length_score * 0.4 + diversity_score * 0.3 + 
-                  complexity_score * 0.3 + bonus, 1.0)
-    
-    def _calculate_domain_relevance(self, section_text: str, query: str) -> float:
-        """Calculate domain-specific relevance"""
-        # Domain-specific terms that indicate relevance
-        domain_indicators = {
-            'research': ['study', 'analysis', 'findings', 'methodology', 'results', 'conclusion'],
-            'business': ['revenue', 'profit', 'market', 'strategy', 'performance', 'investment'],
-            'technical': ['algorithm', 'method', 'implementation', 'system', 'model', 'framework'],
-            'academic': ['theory', 'concept', 'principle', 'hypothesis', 'evidence', 'literature'],
-            'medical': ['patient', 'treatment', 'diagnosis', 'clinical', 'therapeutic', 'medical'],
-            'financial': ['financial', 'economic', 'fiscal', 'monetary', 'budget', 'cost']
-        }
-        
-        section_lower = section_text.lower()
-        query_lower = query.lower()
-        
-        max_relevance = 0.0
-        for domain, indicators in domain_indicators.items():
-            if domain in query_lower:
-                domain_score = sum(1 for indicator in indicators if indicator in section_lower)
-                relevance = domain_score / len(indicators)
-                max_relevance = max(max_relevance, relevance)
-        
-        return max_relevance
-    
-    def _calculate_structure_score(self, section: Dict) -> float:
-        """Calculate bonus for well-structured sections"""
-        title = section.get('title', '')
-        content = section.get('content', '')
-        
-        score = 0.0
-        
-        # Title quality
-        if title and 5 <= len(title.split()) <= 15:
-            score += 0.3
-        
-        # Content structure indicators
-        if content:
-            # Has bullet points or numbered lists
-            if re.search(r'[•\-\*]\s+|^\d+[\.\)]\s+', content, re.MULTILINE):
-                score += 0.2
-            
-            # Has proper paragraphs
-            paragraphs = content.split('\n\n')
-            if len(paragraphs) > 1:
-                score += 0.2
-            
-            # Has concluding statements
-            if re.search(r'(conclusion|summary|therefore|thus|finally)', content.lower()):
-                score += 0.3
-        
-        return min(score, 1.0)
-    
-    def get_refined_summary(self, query: str, section_content: str, 
-                          num_sentences: int = 3) -> str:
-        """
-        Advanced extractive summary with context-aware sentence selection
-        """
-        if not section_content or not section_content.strip():
-            return ""
-        
-        sentences = self._advanced_sentence_split(section_content)
-        
-        if len(sentences) <= num_sentences:
-            return section_content.strip()
-        
-        # Score sentences using multiple criteria
-        sentence_scores = []
-        query_embedding = self.sentence_model.encode(query, convert_to_tensor=True, show_progress_bar=False)
+        # Apply hard filters first
+        filtered_sections = self._apply_hard_filters(sections, job_to_be_done)
+        if not filtered_sections:
+            logger.warning("All sections were excluded by hard filters")
+            return [], []
 
-        for i, sentence in enumerate(sentences):
-            score = self._calculate_sentence_score(
-                sentence, query, query_embedding, i, len(sentences)
-            )
-            sentence_scores.append((i, sentence, score))
+        logger.info(f"After filtering: {len(filtered_sections)} sections remain")
+
+        # Compute semantic similarities
+        semantic_scores = self._compute_semantic_scores(query, filtered_sections)
         
-        # Sort by score and select top sentences
-        sentence_scores.sort(key=lambda x: x[2], reverse=True)
-        selected_indices = [x[0] for x in sentence_scores[:num_sentences]]
-        selected_indices.sort()  # Maintain original order
+        # Apply persona-specific scoring
+        persona_scores = self._compute_persona_scores(persona, filtered_sections)
         
-        # Create coherent summary
-        summary_sentences = [sentences[i] for i in selected_indices]
-        summary = self._create_coherent_summary(summary_sentences)
+        # Apply task-specific scoring
+        task_scores = self._compute_task_scores(job_to_be_done, filtered_sections)
         
-        return summary
-    
-    def _advanced_sentence_split(self, text: str) -> List[str]:
-        """Advanced sentence splitting with better handling of edge cases"""
-        # First, protect abbreviations and numbers
-        text = re.sub(r'\b([A-Z][a-z]{1,2}\.)', r'\1<PERIOD>', text)
-        text = re.sub(r'(\d+\.\d+)', r'\1<DECIMAL>', text)
+        # Apply soft boosts from constraints
+        boost_scores = self._apply_soft_boosts(filtered_sections, job_to_be_done)
         
-        # Split on sentence boundaries
-        sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z])', text)
+        # Apply quality metrics
+        quality_scores = self._compute_quality_scores(filtered_sections)
         
-        # Restore protected periods
-        sentences = [s.replace('<PERIOD>', '.').replace('<DECIMAL>', '.') for s in sentences]
+        # Combine all scores with weights
+        final_scores = self._combine_scores({
+            'semantic': semantic_scores,
+            'persona': persona_scores,
+            'task': task_scores,
+            'boost': boost_scores,
+            'quality': quality_scores
+        })
+
+        # Create ranked sections
+        ranked_sections = []
+        for i, section in enumerate(filtered_sections):
+            section_copy = section.copy()
+            section_copy['final_score'] = final_scores[i]
+            section_copy['semantic_score'] = semantic_scores[i]
+            section_copy['persona_score'] = persona_scores[i]
+            section_copy['task_score'] = task_scores[i]
+            ranked_sections.append(section_copy)
+
+        # Sort by final score
+        ranked_sections = sorted(ranked_sections, key=lambda x: x['final_score'], reverse=True)
         
-        # Clean and filter
-        cleaned_sentences = []
-        for sentence in sentences:
-            sentence = sentence.strip()
-            if sentence and len(sentence) > 15 and len(sentence.split()) > 3:
-                cleaned_sentences.append(sentence)
+        # Apply diversity filter to avoid too similar sections
+        diverse_sections = self._apply_diversity_filter(ranked_sections, query)
         
-        return cleaned_sentences
-    
-    def _calculate_sentence_score(self, sentence: str, query: str, 
-                                query_embedding, position: int, total_sentences: int) -> float:
-        """Calculate comprehensive sentence relevance score"""
-        # 1. Semantic similarity
-        try:
-            sentence_embedding = self.sentence_model.encode(sentence, convert_to_tensor=True, show_progress_bar=False)
-            semantic_score = float(util.cos_sim(query_embedding, sentence_embedding)[0][0])
-        except:
-            semantic_score = 0.0
+        # Select top_k and assign ranks
+        top_sections = diverse_sections[:top_k]
+        for idx, section in enumerate(top_sections, 1):
+            section['importance_rank'] = idx
+
+        # Generate subsection analysis
+        subsections = self._generate_subsection_analysis(query, top_sections, persona, job_to_be_done)
+
+        logger.info(f"Final ranking: {len(top_sections)} sections selected")
+        return top_sections, subsections
+
+    def _create_enhanced_query(self, persona: str, job_to_be_done: str) -> str:
+        """Create an enhanced query string for better semantic matching."""
+        # Extract persona keywords
+        persona_lower = persona.lower()
+        persona_context = []
         
-        # 2. Position bias (first and last sentences often important)
-        if position == 0:
-            position_score = 0.3
-        elif position == total_sentences - 1:
-            position_score = 0.2
-        else:
-            position_score = 0.1
+        for role, keywords in self.persona_keywords.items():
+            if role in persona_lower:
+                persona_context.extend(keywords[:3])  # Top 3 keywords
         
-        # 3. Content indicators
-        content_score = 0.0
-        sentence_lower = sentence.lower()
+        # Extract task keywords
+        task_lower = job_to_be_done.lower()
+        task_context = []
         
-        # Important phrases
-        important_phrases = [
-            'results show', 'findings indicate', 'analysis reveals', 'study demonstrates',
-            'research shows', 'data suggests', 'evidence indicates', 'conclusion',
-            'significantly', 'important', 'key', 'main', 'primary', 'critical'
-        ]
+        for task_type, keywords in self.task_keywords.items():
+            if task_type in task_lower:
+                task_context.extend(keywords[:3])
         
-        for phrase in important_phrases:
-            if phrase in sentence_lower:
-                content_score += 0.1
+        # Combine into enhanced query
+        query_parts = [f"As a {persona}", job_to_be_done]
         
-        # 4. Sentence quality
-        words = sentence.split()
-        quality_score = 0.0
+        if persona_context:
+            query_parts.append(f"focusing on {' '.join(persona_context)}")
         
-        if 10 <= len(words) <= 30:  # Optimal length
-            quality_score += 0.2
+        if task_context:
+            query_parts.append(f"related to {' '.join(task_context)}")
         
-        if re.search(r'\d+', sentence):  # Contains numbers/data
-            quality_score += 0.1
+        return " ".join(query_parts).strip()
+
+    def _apply_hard_filters(self, sections: List[Dict], job: str) -> List[Dict]:
+        """Apply hard filters to exclude unwanted content."""
+        if not self.hard_filters:
+            return sections
+
+        job_lower = job.lower()
         
-        # Combine scores
-        total_score = (
-            0.5 * semantic_score +
-            0.2 * position_score +
-            0.2 * min(content_score, 0.5) +
-            0.1 * quality_score
-        )
-        
-        return total_score
-    
-    def _create_coherent_summary(self, sentences: List[str]) -> str:
-        """Create a coherent summary from selected sentences"""
-        if not sentences:
-            return ""
-        
-        # Basic coherence improvements
-        summary = " ".join(sentences)
-        
-        # Fix spacing and punctuation
-        summary = re.sub(r'\s+', ' ', summary).strip()
-        
-        # Ensure proper ending
-        if summary and not summary.endswith(('.', '!', '?')):
-            summary += "."
-        
-        return summary
-    
-    def analyze_subsections(self, persona: str, job_to_be_done: str, 
-                          sections: List[Dict], top_n_sections: int = 10, 
-                          sentences_per_section: int = 3) -> List[Dict]:
-        """
-        Advanced subsection analysis with context-aware refinement
-        """
-        query = f"Role: {persona}. Task: {job_to_be_done}. Context: {persona} {job_to_be_done}"
-        
-        subsections = []
-        for i, section in enumerate(sections[:top_n_sections]):
-            # Get refined text using advanced summarization
-            refined_text = self.get_refined_summary(
-                query, 
-                section.get('content', ''), 
-                sentences_per_section
-            )
+        # Determine which filter categories are active based on job
+        active_filters = {}
+        for filter_name, pattern in self.hard_filters.items():
+            category = filter_name.split('_')[0]
+            if category in job_lower:
+                active_filters[filter_name] = pattern
+
+        if not active_filters:
+            return sections
+
+        filtered_sections = []
+        for section in sections:
+            text_to_check = f"{section.get('title', '')} {section.get('content', '')}"
             
-            if refined_text:
-                subsection = {
-                    'document': section.get('document', ''),
-                    'page': section.get('page', 1),
-                    'section_title': section.get('title', ''),
-                    'refined_text': refined_text,
-                    'importance_rank': section.get('importance_rank', i + 1),
-                    'relevance_score': section.get('composite_score', 0.0)
-                }
-                subsections.append(subsection)
-        
-        # Additional post-processing for better results
-        subsections = self._post_process_subsections(subsections, persona, job_to_be_done)
-        
-        return subsections
-    
-    def _post_process_subsections(self, subsections: List[Dict], 
-                                persona: str, job_to_be_done: str) -> List[Dict]:
-        """Post-process subsections for optimal results"""
-        if not subsections:
-            return subsections
-        
-        # Remove duplicates based on content similarity
-        unique_subsections = []
-        for subsection in subsections:
-            is_duplicate = False
-            for existing in unique_subsections:
-                similarity = self._calculate_text_similarity(
-                    subsection['refined_text'], 
-                    existing['refined_text']
-                )
-                if similarity > 0.8:
-                    is_duplicate = True
+            # Check if section should be excluded
+            exclude = False
+            for filter_name, pattern in active_filters.items():
+                if pattern.search(text_to_check):
+                    logger.debug(f"Section '{section.get('title', '')[:50]}...' excluded by filter: {filter_name}")
+                    exclude = True
                     break
             
-            if not is_duplicate:
-                unique_subsections.append(subsection)
-        
-        # Ensure minimum content quality
-        quality_filtered = []
-        for subsection in unique_subsections:
-            text = subsection['refined_text']
-            if len(text.split()) >= 10 and len(text) >= 50:
-                quality_filtered.append(subsection)
-        
-        return quality_filtered
-    
-    def _calculate_text_similarity(self, text1: str, text2: str) -> float:
-        """Calculate text similarity for duplicate detection"""
-        if not text1 or not text2:
-            return 0.0
-        
-        # Use TF-IDF for similarity if available, otherwise use simple word overlap
+            if not exclude:
+                filtered_sections.append(section)
+
+        logger.info(f"Hard filters: {len(sections)} -> {len(filtered_sections)} sections")
+        return filtered_sections
+
+    def _compute_semantic_scores(self, query: str, sections: List[Dict]) -> List[float]:
+        """Compute semantic similarity scores using sentence transformers."""
         try:
-            tfidf_matrix = self.tfidf_vectorizer.fit_transform([text1, text2])
-            similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
-            return similarity
-        except:
-            # Fallback to word overlap
-            words1 = set(text1.lower().split())
-            words2 = set(text2.lower().split())
-            if not words1 or not words2:
-                return 0.0
-            intersection = words1.intersection(words2)
-            union = words1.union(words2)
-            return len(intersection) / len(union) if union else 0.0
+            # Prepare texts for encoding
+            section_texts = []
+            for section in sections:
+                title = section.get('title', '')
+                content = section.get('content', '')
+                # Combine title and content, with title getting more weight
+                combined_text = f"{title} {title} {content}"[:1000]  # Limit length
+                section_texts.append(combined_text)
+
+            # Encode query and sections
+            query_embedding = self.model.encode(query, convert_to_tensor=True, show_progress_bar=False)
+            section_embeddings = self.model.encode(section_texts, convert_to_tensor=True, show_progress_bar=False)
+
+            # Compute cosine similarities
+            similarities = util.cos_sim(query_embedding, section_embeddings)[0]
+            scores = similarities.cpu().numpy().tolist()
+
+            return scores
+
+        except Exception as e:
+            logger.error(f"Error computing semantic scores: {e}")
+            return [0.5] * len(sections)  # Fallback scores
+
+    def _compute_persona_scores(self, persona: str, sections: List[Dict]) -> List[float]:
+        """Compute persona-specific relevance scores."""
+        persona_lower = persona.lower()
+        
+        # Find relevant keywords for this persona
+        relevant_keywords = []
+        for role, keywords in self.persona_keywords.items():
+            if role in persona_lower:
+                relevant_keywords.extend(keywords)
+        
+        if not relevant_keywords:
+            return [0.0] * len(sections)  # No persona-specific boost
+
+        scores = []
+        for section in sections:
+            text = f"{section.get('title', '')} {section.get('content', '')}".lower()
+            
+            # Count keyword matches
+            matches = sum(1 for keyword in relevant_keywords if keyword in text)
+            
+            # Normalize score
+            max_possible_matches = min(len(relevant_keywords), 5)  # Cap at 5
+            score = matches / max_possible_matches if max_possible_matches > 0 else 0.0
+            
+            scores.append(score)
+
+        return scores
+
+    def _compute_task_scores(self, job_to_be_done: str, sections: List[Dict]) -> List[float]:
+        """Compute task-specific relevance scores."""
+        job_lower = job_to_be_done.lower()
+        
+        # Find relevant task keywords
+        relevant_keywords = []
+        for task_type, keywords in self.task_keywords.items():
+            if task_type in job_lower:
+                relevant_keywords.extend(keywords)
+
+        # Add specific terms from job description
+        job_words = [word for word in job_lower.split() 
+                    if len(word) > 3 and word not in {'the', 'and', 'for', 'with', 'that', 'this'}]
+        relevant_keywords.extend(job_words)
+
+        if not relevant_keywords:
+            return [0.0] * len(sections)
+
+        scores = []
+        for section in sections:
+            text = f"{section.get('title', '')} {section.get('content', '')}".lower()
+            
+            # Count keyword matches with different weights
+            title_text = section.get('title', '').lower()
+            content_text = section.get('content', '').lower()
+            
+            title_matches = sum(2 for keyword in relevant_keywords if keyword in title_text)  # Title matches worth more
+            content_matches = sum(1 for keyword in relevant_keywords if keyword in content_text)
+            
+            total_matches = title_matches + content_matches
+            
+            # Normalize score
+            max_possible = min(len(relevant_keywords) * 2, 10)  # Cap at 10
+            score = total_matches / max_possible if max_possible > 0 else 0.0
+            
+            scores.append(min(score, 1.0))  # Cap at 1.0
+
+        return scores
+
+    def _apply_soft_boosts(self, sections: List[Dict], job: str) -> List[float]:
+        """Apply soft boosts based on constraint patterns."""
+        if not self.soft_boosts:
+            return [1.0] * len(sections)
+
+        job_lower = job.lower()
+        
+        # Determine which boost categories are active
+        active_boosts = {}
+        for boost_name, (pattern, multiplier) in self.soft_boosts.items():
+            category = boost_name.split('_')[0]
+            if category in job_lower:
+                active_boosts[boost_name] = (pattern, multiplier)
+
+        if not active_boosts:
+            return [1.0] * len(sections)
+
+        scores = []
+        for section in sections:
+            text_to_check = f"{section.get('title', '')} {section.get('content', '')}"
+            
+            boost_multiplier = 1.0
+            for boost_name, (pattern, multiplier) in active_boosts.items():
+                if pattern.search(text_to_check):
+                    boost_multiplier *= multiplier
+                    logger.debug(f"Section '{section.get('title', '')[:30]}...' boosted by {boost_name}")
+
+            scores.append(boost_multiplier)
+
+        return scores
+
+    def _compute_quality_scores(self, sections: List[Dict]) -> List[float]:
+        """Compute quality scores based on content characteristics."""
+        scores = []
+        
+        for section in sections:
+            title = section.get('title', '')
+            content = section.get('content', '')
+            
+            score = 0.0
+            
+            # Length score (prefer substantial content)
+            content_length = len(content)
+            if content_length > 500:
+                score += 0.3
+            elif content_length > 200:
+                score += 0.2
+            elif content_length > 100:
+                score += 0.1
+            
+            # Title quality score
+            if len(title) > 10 and not title.lower().startswith('page'):
+                score += 0.2
+            
+            # Structure score (look for structured content)
+            if ':' in content or '•' in content or '\n' in content:
+                score += 0.1
+            
+            # Confidence score from extraction method
+            confidence = section.get('confidence', 0.5)
+            score += confidence * 0.4
+            
+            scores.append(min(score, 1.0))  # Cap at 1.0
+        
+        return scores
+
+    def _combine_scores(self, score_dict: Dict[str, List[float]]) -> List[float]:
+        """Combine different score types with appropriate weights."""
+        weights = {
+            'semantic': 0.4,    # Primary semantic matching
+            'persona': 0.2,     # Persona-specific relevance
+            'task': 0.2,        # Task-specific relevance
+            'boost': 0.1,       # Constraint-based boosts
+            'quality': 0.1      # Content quality
+        }
+        
+        num_sections = len(next(iter(score_dict.values())))
+        combined_scores = []
+        
+        for i in range(num_sections):
+            total_score = 0.0
+            for score_type, scores in score_dict.items():
+                weight = weights.get(score_type, 0.1)
+                score_value = scores[i] if i < len(scores) else 0.0
+                
+                if score_type == 'boost':
+                    # Boost is a multiplier, not additive
+                    total_score *= score_value
+                else:
+                    total_score += weight * score_value
+            
+            combined_scores.append(total_score)
+        
+        return combined_scores
+
+    def _apply_diversity_filter(self, ranked_sections: List[Dict], query: str, 
+                              similarity_threshold: float = 0.85) -> List[Dict]:
+        """Apply diversity filter to reduce redundant sections."""
+        if len(ranked_sections) <= 3:
+            return ranked_sections  # Too few sections to filter
+        
+        try:
+            # Get embeddings for all sections
+            section_texts = [
+                f"{s.get('title', '')} {s.get('content', '')}"[:500] 
+                for s in ranked_sections
+            ]
+            embeddings = self.model.encode(section_texts, convert_to_tensor=True, show_progress_bar=False)
+            
+            # Select diverse sections
+            selected_sections = [ranked_sections[0]]  # Always include top section
+            selected_embeddings = [embeddings[0]]
+            
+            for i, section in enumerate(ranked_sections[1:], 1):
+                current_embedding = embeddings[i]
+                
+                # Check similarity with already selected sections
+                similarities = util.cos_sim(current_embedding, selected_embeddings)[0]
+                max_similarity = float(similarities.max()) if len(similarities) > 0 else 0.0
+                
+                # Include if sufficiently different
+                if max_similarity < similarity_threshold:
+                    selected_sections.append(section)
+                    selected_embeddings.append(current_embedding)
+                    
+                    # Stop if we have enough diverse sections
+                    if len(selected_sections) >= 8:
+                        break
+            
+            logger.info(f"Diversity filter: {len(ranked_sections)} -> {len(selected_sections)} sections")
+            return selected_sections
+            
+        except Exception as e:
+            logger.warning(f"Diversity filtering failed: {e}")
+            return ranked_sections  # Return original if filtering fails
+
+    def _generate_subsection_analysis(self, query: str, sections: List[Dict], 
+                                    persona: str, job_to_be_done: str) -> List[Dict]:
+        """Generate detailed subsection analysis with intelligent summarization."""
+        subsections = []
+        
+        for section in sections:
+            content = section.get('content', '')
+            if not content:
+                continue
+            
+            # Extract key sentences based on multiple criteria
+            summary = self._extract_key_sentences(
+                content, query, persona, job_to_be_done, num_sentences=3
+            )
+            
+            subsection = {
+                'document': section.get('document', ''),
+                'page_number': section.get('page', 1),
+                'refined_text': summary
+            }
+            
+            subsections.append(subsection)
+        
+        return subsections
+
+    def _extract_key_sentences(self, content: str, query: str, persona: str, 
+                             job_to_be_done: str, num_sentences: int = 3) -> str:
+        """Extract key sentences using multiple ranking criteria."""
+        try:
+            # Split into sentences
+            sentences = self._split_into_sentences(content)
+            
+            if len(sentences) <= num_sentences:
+                return ' '.join(sentences)
+            
+            # Score sentences using multiple criteria
+            sentence_scores = []
+            
+            # Get embeddings for query and sentences
+            query_emb = self.model.encode(query, convert_to_tensor=True, show_progress_bar=False)
+            sentence_embs = self.model.encode(sentences, convert_to_tensor=True, show_progress_bar=False)
+            
+            # Compute semantic similarities
+            semantic_sims = util.cos_sim(query_emb, sentence_embs)[0].cpu().numpy()
+            
+            for i, sentence in enumerate(sentences):
+                score = 0.0
+                
+                # Semantic similarity (40% weight)
+                score += 0.4 * semantic_sims[i]
+                
+                # Position score (first and last sentences often important) (20% weight)
+                position_score = 0.0
+                if i == 0:  # First sentence
+                    position_score = 0.8
+                elif i == len(sentences) - 1:  # Last sentence
+                    position_score = 0.6
+                elif i < len(sentences) * 0.3:  # Early sentences
+                    position_score = 0.4
+                
+                score += 0.2 * position_score
+                
+                # Length score (prefer substantial sentences) (15% weight)
+                words = sentence.split()
+                if 10 <= len(words) <= 30:
+                    length_score = 1.0
+                elif 5 <= len(words) < 10:
+                    length_score = 0.7
+                elif len(words) > 30:
+                    length_score = 0.8
+                else:
+                    length_score = 0.3
+                
+                score += 0.15 * length_score
+                
+                # Keyword relevance (25% weight)
+                keyword_score = self._compute_sentence_keyword_score(
+                    sentence, persona, job_to_be_done
+                )
+                score += 0.25 * keyword_score
+                
+                sentence_scores.append((i, score, sentence))
+            
+            # Sort by score and select top sentences
+            top_sentences = sorted(sentence_scores, key=lambda x: x[1], reverse=True)[:num_sentences]
+            
+            # Sort selected sentences by original order
+            selected_sentences = sorted(top_sentences, key=lambda x: x[0])
+            
+            return ' '.join([sent[2] for sent in selected_sentences])
+            
+        except Exception as e:
+            logger.warning(f"Error in key sentence extraction: {e}")
+            # Fallback: return first few sentences
+            sentences = self._split_into_sentences(content)
+            return ' '.join(sentences[:num_sentences])
+
+    def _split_into_sentences(self, text: str) -> List[str]:
+        """Split text into sentences with better handling of edge cases."""
+        # Basic sentence splitting
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        
+        # Filter and clean sentences
+        clean_sentences = []
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if len(sentence) > 10 and len(sentence.split()) >= 3:  # Minimum requirements
+                clean_sentences.append(sentence)
+        
+        return clean_sentences
+
+    def _compute_sentence_keyword_score(self, sentence: str, persona: str, job_to_be_done: str) -> float:
+        """Compute keyword relevance score for a sentence."""
+        sentence_lower = sentence.lower()
+        score = 0.0
+        
+        # Persona keywords
+        persona_lower = persona.lower()
+        for role, keywords in self.persona_keywords.items():
+            if role in persona_lower:
+                matches = sum(1 for keyword in keywords if keyword in sentence_lower)
+                score += matches / len(keywords) * 0.5
+        
+        # Job keywords
+        job_words = [word for word in job_to_be_done.lower().split() 
+                    if len(word) > 3]
+        if job_words:
+            matches = sum(1 for word in job_words if word in sentence_lower)
+            score += matches / len(job_words) * 0.5
+        
+        return min(score, 1.0)  # Cap at 1.0

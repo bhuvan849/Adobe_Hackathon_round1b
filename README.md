@@ -1,93 +1,86 @@
-# Challenge 1b: Multi-Collection PDF Analysis
+# 🤖 Persona-Driven Document Intelligence System  
+### Adobe India Hackathon 2025 – Round 1B Submission
 
-## Overview
-Advanced PDF analysis solution that processes multiple document collections and extracts relevant content based on specific personas and use cases.
+[![Python Version](https://img.shields.io/badge/Python-3.9-blue.svg)](https://www.python.org/downloads/release/python-390/)  
+[![Docker](https://img.shields.io/badge/Docker-Build-blue)](https://www.docker.com/)  
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Project Structure
-```
-Challenge_1b/
-├── Collection 1/                    # Travel Planning
-│   ├── PDFs/                       # South of France guides
-│   ├── challenge1b_input.json      # Input configuration
-│   └── challenge1b_output.json     # Analysis results
-├── Collection 2/                    # Adobe Acrobat Learning
-│   ├── PDFs/                       # Acrobat tutorials
-│   ├── challenge1b_input.json      # Input configuration
-│   └── challenge1b_output.json     # Analysis results
-├── Collection 3/                    # Recipe Collection
-│   ├── PDFs/                       # Cooking guides
-│   ├── challenge1b_input.json      # Input configuration
-│   └── challenge1b_output.json     # Analysis results
-└── README.md
-```
-
-## Collections
-
-### Collection 1: Travel Planning
-- **Challenge ID**: round_1b_002
-- **Persona**: Travel Planner
-- **Task**: Plan a 4-day trip for 10 college friends to South of France
-- **Documents**: 7 travel guides
-
-### Collection 2: Adobe Acrobat Learning
-- **Challenge ID**: round_1b_003
-- **Persona**: HR Professional
-- **Task**: Create and manage fillable forms for onboarding and compliance
-- **Documents**: 15 Acrobat guides
-
-### Collection 3: Recipe Collection
-- **Challenge ID**: round_1b_001
-- **Persona**: Food Contractor
-- **Task**: Prepare vegetarian buffet-style dinner menu for corporate gathering
-- **Documents**: 9 cooking guides
-
-## Input/Output Format
-
-### Input JSON Structure
-```json
-{
-  "challenge_info": {
-    "challenge_id": "round_1b_XXX",
-    "test_case_name": "specific_test_case"
-  },
-  "documents": [{"filename": "doc.pdf", "title": "Title"}],
-  "persona": {"role": "User Persona"},
-  "job_to_be_done": {"task": "Use case description"}
-}
-```
-
-### Output JSON Structure
-```json
-{
-  "metadata": {
-    "input_documents": ["list"],
-    "persona": "User Persona",
-    "job_to_be_done": "Task description"
-  },
-  "extracted_sections": [
-    {
-      "document": "source.pdf",
-      "section_title": "Title",
-      "importance_rank": 1,
-      "page_number": 1
-    }
-  ],
-  "subsection_analysis": [
-    {
-      "document": "source.pdf",
-      "refined_text": "Content",
-      "page_number": 1
-    }
-  ]
-}
-```
-
-## Key Features
-- Persona-based content analysis
-- Importance ranking of extracted sections
-- Multi-collection document processing
-- Structured JSON output with metadata
+This project is an advanced document analysis system designed for the “Connecting the Dots” challenge. It intelligently extracts and prioritizes the most relevant sections from a collection of PDFs based on a specific user persona and their job-to-be-done.
 
 ---
 
-**Note**: This README provides a brief overview of the Challenge 1b solution structure based on available sample data. 
+## ✨ Key Features
+
+- **🧠 Multi-Strategy Parsing:**  
+  The system uses a robust, two‑stage parser. It first attempts to use a PDF’s built‑in bookmarks for perfect accuracy and falls back to a sophisticated visual and structural analysis if bookmarks are unavailable.
+
+- **🎯 Constraint‑Aware AI:**  
+  The analysis engine is fully generic. It uses a dynamic constraint system defined in `analysis_config.json` to strictly filter and re‑rank results based on the specific requirements of a task (e.g., filtering for “vegetarian” content).
+
+- **✍️ High‑Quality Summarization:**  
+  It generates coherent, multi‑sentence summaries for the top‑ranked sections, providing actionable intelligence at a glance.
+
+- **📦 Dockerized Environment:**  
+  The entire application is containerized with Docker for consistent, reliable, and platform‑independent execution.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Programming Language:** Python 3.9  
+- **Core Libraries:**
+  - `PyMuPDF` for robust PDF parsing  
+  - `sentence-transformers` for state‑of‑the‑art semantic analysis (`all-mpnet-base-v2`)  
+  - `spaCy` for advanced natural language processing  
+  - `NumPy` & `scikit-learn` for numerical operations and ML components  
+
+- **Containerization:** Docker  
+
+---
+
+## 🚀 How to Run
+
+The solution is designed to be built and run inside a Docker container.
+
+### 1. Build the Docker Image
+
+From the root directory of the project, run:
+
+```bash
+docker build -t mysolution:latest .
+```
+
+### 2. Prepare the Input Directory
+
+Your input folder must be structured as follows:
+
+```
+input/
+├── PDFs/
+│   ├── document1.pdf
+│   └── document2.pdf
+└── challenge1b_input.json
+```
+
+The `challenge1b_input.json` file defines the persona and job for the analysis.
+
+### 3. Run the Container
+
+Execute the following command to start the analysis. The final results will be saved to `output/challenge1b_output.json`.
+
+#### Windows (Command Prompt)
+
+```cmd
+docker run --rm -v "%cd%/input:/app/input" -v "%cd%/output:/app/output" --network none mysolution:latest
+```
+
+#### Windows (PowerShell)
+
+```powershell
+docker run --rm -v "${PWD}/input:/app/input" -v "${PWD}/output:/app/output" --network none mysolution:latest
+```
+
+---
+
+Enjoy your persona‑driven insights! 🎉
+
