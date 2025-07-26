@@ -1,136 +1,131 @@
 {
-    "metadata": {
-        "challenge_info": {
-            "challenge_id": "round_1b_003",
-            "test_case_name": "create_manageable_forms",
-            "description": "Creating manageable forms"
-        },
-        "documents": [
-            {
-                "filename": "Learn Acrobat - Create and Convert_1.pdf",
-                "title": "Learn Acrobat - Create and Convert_1"
-            },
-            {
-                "filename": "Learn Acrobat - Create and Convert_2.pdf",
-                "title": "Learn Acrobat - Create and Convert_2"
-            },
-            {
-                "filename": "Learn Acrobat - Edit_1.pdf",
-                "title": "Learn Acrobat - Edit_1"
-            },
-            {
-                "filename": "Learn Acrobat - Edit_2.pdf",
-                "title": "Learn Acrobat - Edit_2"
-            },
-            {
-                "filename": "Learn Acrobat - Export_1.pdf",
-                "title": "Learn Acrobat - Export_1"
-            },
-            {
-                "filename": "Learn Acrobat - Export_2.pdf",
-                "title": "Learn Acrobat - Export_2"
-            },
-            {
-                "filename": "Learn Acrobat - Fill and Sign.pdf",
-                "title": "Learn Acrobat - Fill and Sign"
-            },
-            {
-                "filename": "Learn Acrobat - Generative AI_1.pdf",
-                "title": "Learn Acrobat - Generative AI_1"
-            },
-            {
-                "filename": "Learn Acrobat - Generative AI_2.pdf",
-                "title": "Learn Acrobat - Generative AI_2"
-            },
-            {
-                "filename": "Learn Acrobat - Request e-signatures_1.pdf",
-                "title": "Learn Acrobat - Request e-signatures_1"
-            },
-            {
-                "filename": "Learn Acrobat - Request e-signatures_2.pdf",
-                "title": "Learn Acrobat - Request e-signatures_2"
-            },
-            {
-                "filename": "Learn Acrobat - Share_1.pdf",
-                "title": "Learn Acrobat - Share_1"
-            },
-            {
-                "filename": "Learn Acrobat - Share_2.pdf",
-                "title": "Learn Acrobat - Share_2"
-            },
-            {
-                "filename": "Test Your Acrobat Exporting Skills.pdf",
-                "title": "Test Your Acrobat Exporting Skills"
-            },
-            {
-                "filename": "The Ultimate PDF Sharing Checklist.pdf",
-                "title": "The Ultimate PDF Sharing Checklist"
-            }
-        ],
-        "persona": {
-            "role": "HR professional"
-        },
-        "job_to_be_done": {
-            "task": "Create and manage fillable forms for onboarding and compliance."
-        }
+  "metadata": {
+    "challenge_info": {
+      "challenge_id": "round_1b_001",
+      "test_case_name": "menu_planning",
+      "description": "Dinner menu planning"
     },
-    "extracted_sections": [
-        {
-            "document": "Learn Acrobat - Request e-signatures_1.pdf",
-            "section_title": "Validate documents",
-            "importance_rank": 1,
-            "page_number": 20
-        },
-        {
-            "document": "Learn Acrobat - Generative AI_1.pdf",
-            "section_title": "Page 14 Content",
-            "importance_rank": 2,
-            "page_number": 14
-        },
-        {
-            "document": "Learn Acrobat - Generative AI_1.pdf",
-            "section_title": "Page 14 Content",
-            "importance_rank": 3,
-            "page_number": 14
-        },
-        {
-            "document": "Learn Acrobat - Request e-signatures_1.pdf",
-            "section_title": "2. Under Categories , select Identity .",
-            "importance_rank": 4,
-            "page_number": 28
-        },
-        {
-            "document": "Learn Acrobat - Request e-signatures_1.pdf",
-            "section_title": "2. Under Categories , select Identity .",
-            "importance_rank": 5,
-            "page_number": 28
-        }
+    "documents": [
+      {
+        "filename": "Breakfast Ideas.pdf",
+        "title": "Breakfast Ideas"
+      },
+      {
+        "filename": "Dinner Ideas - Mains_1.pdf",
+        "title": "Dinner Ideas - Mains_1"
+      },
+      {
+        "filename": "Dinner Ideas - Mains_2.pdf",
+        "title": "Dinner Ideas - Mains_2"
+      },
+      {
+        "filename": "Dinner Ideas - Mains_3.pdf",
+        "title": "Dinner Ideas - Mains_3"
+      },
+      {
+        "filename": "Dinner Ideas - Sides_1.pdf",
+        "title": "Dinner Ideas - Sides_1"
+      },
+      {
+        "filename": "Dinner Ideas - Sides_2.pdf",
+        "title": "Dinner Ideas - Sides_2"
+      },
+      {
+        "filename": "Dinner Ideas - Sides_3.pdf",
+        "title": "Dinner Ideas - Sides_3"
+      },
+      {
+        "filename": "Dinner Ideas - Sides_4.pdf",
+        "title": "Dinner Ideas - Sides_4"
+      },
+      {
+        "filename": "Lunch Ideas.pdf",
+        "title": "Lunch Ideas"
+      }
     ],
-    "sub_section_analysis": [
-        {
-            "document": "Learn Acrobat - Request e-signatures_1.pdf",
-            "refined_text": "\u2022 Validate all signatures, confirming the identity of everyone who signed the document \u2022 Validate document integrity by tracking all previously signed versions of a document to verify changes made during the document\u2019s lifecycle",
-            "page_number": 20
-        },
-        {
-            "document": "Learn Acrobat - Generative AI_1.pdf",
-            "refined_text": "If you have questions about the document, scroll to the bottom, and select Ask AI",
-            "page_number": 14
-        },
-        {
-            "document": "Learn Acrobat - Generative AI_1.pdf",
-            "refined_text": "If you have questions about the document, scroll to the bottom, and select Ask AI",
-            "page_number": 14
-        },
-        {
-            "document": "Learn Acrobat - Request e-signatures_1.pdf",
-            "refined_text": "3. Enter your name, organization, and email address to create your profile.",
-            "page_number": 28
-        },
-        {
-            "document": "Learn Acrobat - Request e-signatures_1.pdf",
-            "refined_text": "3. Enter your name, organization, and email address to create your profile.",
-            "page_number": 28
-        }
-    ]
+    "persona": {
+      "role": "Food Contractor"
+    },
+    "job_to_be_done": {
+      "task": "Prepare a vegetarian buffet-style dinner menu for a corporate gathering, including gluten-free items."
+    },
+    "processing_stats": {
+      "total_documents_processed": 9,
+      "total_sections_extracted": 444,
+      "processing_time_seconds": 0,
+      "average_relevance_score": 0
+    },
+    "timestamp": "2025-07-25T09:26:48.803956Z"
+  },
+  "extracted_sections": [
+    {
+      "document": "Dinner Ideas - Sides_1.pdf",
+      "section_title": "Content Section - Page 5",
+      "importance_rank": 1,
+      "page_number": 5,
+      "relevance_score": 0.2644
+    },
+    {
+      "document": "Dinner Ideas - Mains_2.pdf",
+      "section_title": "Content Section - Page 8",
+      "importance_rank": 2,
+      "page_number": 8,
+      "relevance_score": 0.2383
+    },
+    {
+      "document": "Dinner Ideas - Mains_1.pdf",
+      "section_title": "Content Section - Page 5",
+      "importance_rank": 3,
+      "page_number": 5,
+      "relevance_score": 0.2369
+    },
+    {
+      "document": "Lunch Ideas.pdf",
+      "section_title": "Content Section - Page 9",
+      "importance_rank": 4,
+      "page_number": 9,
+      "relevance_score": 0.2298
+    },
+    {
+      "document": "Dinner Ideas - Mains_3.pdf",
+      "section_title": "4 boneless, skinless chicken breasts",
+      "importance_rank": 5,
+      "page_number": 8,
+      "relevance_score": 0.2281
+    }
+  ],
+  "sub_section_analysis": [
+    {
+      "document": "Dinner Ideas - Sides_1.pdf",
+      "page": 5,
+      "section_title": "Content Section - Page 5",
+      "refined_text": "o Prepare each side dish separately. o Arrange on small plates. o Serve as accompaniments to the main meal.",
+      "importance_rank": 1,
+      "relevance_score": 0.2644384391046706
+    },
+    {
+      "document": "Dinner Ideas - Mains_2.pdf",
+      "page": 8,
+      "section_title": "Content Section - Page 8",
+      "refined_text": " Shredded lettuce, diced tomatoes, shredded cheese, sour cream, and salsa for toppings",
+      "importance_rank": 2,
+      "relevance_score": 0.23829885839356318
+    },
+    {
+      "document": "Lunch Ideas.pdf",
+      "page": 9,
+      "section_title": "Content Section - Page 9",
+      "refined_text": "• 1/2 avocado, mashed • 1/2 cup chickpeas, mashed • 1/4 cup cherry tomatoes, halved •",
+      "importance_rank": 4,
+      "relevance_score": 0.22978357136590138
+    },
+    {
+      "document": "Dinner Ideas - Mains_3.pdf",
+      "page": 8,
+      "section_title": "4 boneless, skinless chicken breasts",
+      "refined_text": "1/2 cup spinach, chopped 1/2 cup feta cheese, crumbled 1/4 cup sun-dried tomatoes, chopped",
+      "importance_rank": 5,
+      "relevance_score": 0.22812611951702522
+    }
+  ]
 }

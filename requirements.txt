@@ -1,3 +1,9 @@
 sentence-transformers
 PyMuPDF
 numpy
+spacy
+scikit-learn
+transformers
+regex
+tqdm
+nltk
