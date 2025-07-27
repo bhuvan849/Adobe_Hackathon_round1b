@@ -41,11 +41,11 @@
     "job_to_be_done": {
       "task": "Plan a trip of 4 days for a group of 10 college friends."
     },
-    "processing_timestamp": "2025-07-26T17:23:43.356396Z",
+    "processing_timestamp": "2025-07-27T12:32:49.273622Z",
     "processing_stats": {
       "total_documents_processed": 7,
       "total_sections_extracted": 121,
-      "processing_time_seconds": 29.04,
+      "processing_time_seconds": 29.93,
       "documents_attempted": 7
     }
   },

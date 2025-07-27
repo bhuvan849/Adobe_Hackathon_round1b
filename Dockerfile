@@ -3,7 +3,7 @@ FROM --platform=linux/amd64 python:3.9-slim
 
 # Set the working directory inside the container
 WORKDIR /app
-ENV TRANSFORMERS_OFFLINE=1
+
 # --- FIX: Install build tools (like gcc) needed to compile some Python packages ---
 RUN apt-get update && apt-get install -y build-essential
 
@@ -23,7 +23,7 @@ RUN python -m spacy download en_core_web_sm
 # --- Model Caching Step ---
 COPY download_model.py .
 RUN python download_model.py
-
+ENV TRANSFORMERS_OFFLINE=1
 # Copy the rest of the application source code into the container
 COPY . .
 
